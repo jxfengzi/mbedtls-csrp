@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(Srp C)
 
-SET(PROJ_NAME "Srp")
+SET(PROJ_NAME "SRP")
 
 #---------------------------------------------------------------------------------------
 # WIN32
@@ -25,6 +25,10 @@ ELSE(WIN32)
     ADD_DEFINITIONS(-g)
 
     ADD_DEFINITIONS(-fPIC)
+
+    # only position independent executables (PIE) are supported
+    ADD_DEFINITIONS(-fPIE)
+    ADD_DEFINITIONS(-fpie)
 
     #-----------------------------------------------------------------------------------
     # APPLE MACOSX

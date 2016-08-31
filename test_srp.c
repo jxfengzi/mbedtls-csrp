@@ -7,7 +7,8 @@
 #include "srp.h"
 
 
-#define NITER          100
+//#define NITER          100
+#define NITER          10
 #define TEST_HASH      SRP_SHA1
 #define TEST_NG        SRP_NG_1024
 
@@ -64,25 +65,27 @@ int main( int argc, char * argv[] )
         g_hex = test_g_hex;
     }
 
-    
+    printf("srp_create_salted_verification_key\n");
     srp_create_salted_verification_key( alg, ng_type, username, 
                 (const unsigned char *)password, 
                 strlen(password), 
                 &bytes_s, &len_s, &bytes_v, &len_v, n_hex, g_hex );
     
 
-    
     start = get_usec();
     
     for( i = 0; i < NITER; i++ )
     {
+        printf("[%d] srp_user_new\n", i);
         usr =  srp_user_new( alg, ng_type, username, 
                              (const unsigned char *)password, 
                              strlen(password), n_hex, g_hex );
 
+        printf("[%d] srp_user_start_authentication\n", i);
         srp_user_start_authentication( usr, &auth_username, &bytes_A, &len_A );
 
         /* User -> Host: (username, bytes_A) */
+        printf("[%d] srp_verifier_new\n", i);
         ver =  srp_verifier_new( alg, ng_type, username, bytes_s, len_s, bytes_v, len_v, 
                                  bytes_A, len_A, & bytes_B, &len_B, n_hex, g_hex );
         
@@ -93,6 +96,7 @@ int main( int argc, char * argv[] )
         }
         
         /* Host -> User: (bytes_s, bytes_B) */
+        printf("[%d] srp_user_process_challenge\n", i);
         srp_user_process_challenge( usr, bytes_s, len_s, bytes_B, len_B, &bytes_M, &len_M );
         
         if ( !bytes_M )
@@ -102,6 +106,7 @@ int main( int argc, char * argv[] )
         }
         
         /* User -> Host: (bytes_M) */
+        printf("[%d] srp_verifier_verify_session\n", i);
         srp_verifier_verify_session( ver, bytes_M, &bytes_HAMK );
         
         if ( !bytes_HAMK )
@@ -111,6 +116,7 @@ int main( int argc, char * argv[] )
         }
         
         /* Host -> User: (HAMK) */
+        printf("[%d] srp_user_verify_session\n", i);
         srp_user_verify_session( usr, bytes_HAMK );
         
         if ( !srp_user_is_authenticated(usr) )
