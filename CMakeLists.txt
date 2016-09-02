@@ -77,7 +77,8 @@ ELSE (WIN32)
 		LINK_DIRECTORIES("/opt/local/lib")
     ENDIF(APPLE)
 
-    LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/../mbedtls-android/android-build/library)
+    #LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/../mbedtls-android/android-build/library)
+    LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/../mbedtls-android/build/library)
 ENDIF (WIN32)
 
 #--------------------------------------------------------------------------------------
@@ -118,3 +119,7 @@ TARGET_LINK_LIBRARIES(srp_shared ${OS_LIB} ${MBEDTLS_LIB})
 SET(TEST_SRP_SRC test_srp.c)
 ADD_EXECUTABLE(test_srp ${TEST_SRP_SRC})
 TARGET_LINK_LIBRARIES(test_srp srp_shared)
+
+SET(TEST_SRP_HAP_SRC test_srp_hap.c)
+ADD_EXECUTABLE(test_srp_hap ${TEST_SRP_HAP_SRC})
+TARGET_LINK_LIBRARIES(test_srp_hap srp_shared)

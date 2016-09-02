@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-
+#include <mbedtls/bignum.h>
 
 #include "srp.h"
 
@@ -24,36 +24,132 @@ const char * test_g_hex = "2";
 #else
 #define NITER          1
 
-#define TEST_HASH      SRP_SHA1
+#define TEST_HASH      SRP_SHA512
 #define TEST_NG        SRP_NG_CUSTOM
 
 //#define TEST_HASH      SRP_SHA1
 //#define TEST_NG        SRP_NG_1024
 
-const char * test_n_hex = 
-"58096059953699580627919159656392014021766122269029"
-"00533702900882779736177890990861472094774477339581"
-"14737341018564637832804372980075047009821092448786"
-"69350591643715881680475409439816445166327550675016"
-"26434556398193186628990071248660819361205119793693"
-"98543329703611823291441017187680753645739127785701"
-"18498974102075191053333558011211093568974594262718"
-"45471397952675959440793493071628394122780510124618"
-"48823260246464987685045886124578424092925842628769"
-"97053125845096254195134636051554280171657144653630"
-"94021609290561084025893662561222573202082865797821"
-"86527099114508220065697817719282702453899023996917"
-"55461907706456858934380117144304264093386763147435"
-"71154537142031573004276428701433036381801705308659"
-"83075119035294602548205993130657100472736247968841"
-"55747025969464577702841484359891296328539183921179"
-"97472632693078113129886487399347796982772784615865"
-"23262128965694428421682461131870976453515250735411"
-"6344703769"
-"9985141483"
-"43807";
-const char * test_g_hex = "5";
+const char * N_3072 = 
+"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
+"020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437"
+"4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF05"
+"98DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB"
+"9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+"E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF695581718"
+"3995497CEA956AE515D2261898FA051015728E5A8AAAC42DAD33170D04507A33"
+"A85521ABDF1CBA64ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7"
+"ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6BF12FFA06D98A0864"
+"D87602733EC86A64521F2B18177B200CBBE117577A615D6C770988C0BAD946E2"
+"08E24FA074E5AB3143DB5BFCE0FD108E4B82D120A93AD2CAFFFFFFFFFFFFFFFF";
+const char * G_3072 = "5";
+const char * S = "BEB25379D1A8581EB5A727673A2441EE";
+const char * V = 
+"9B5E061701EA7AEB39CF6E3519655A853CF94C75CAF2555EF1FAF759BB79CB47"
+"7014E04A88D68FFC05323891D4C205B8DE81C2F203D8FAD1B24D2C109737F1BE"
+"BBD71F912447C4A03C26B9FAD8EDB3E780778E302529ED1EE138CCFC36D4BA31"
+"3CC48B14EA8C22A0186B222E655F2DF5603FD75DF76B3B08FF8950069ADD03A7"
+"54EE4AE88587CCE1BFDE36794DBAE4592B7B904F442B041CB17AEBAD1E3AEBE3"
+"CBE99DE65F4BB1FA00B0E7AF06863DB53B02254EC66E781E3B62A8212C86BEB0"
+"D50B5BA6D0B478D8C4E9BBCEC21765326FBD14058D2BBDE2C33045F03873E539"
+"48D78B794F0790E48C36AED6E880F557427B2FC06DB5E1E2E1D7E661AC482D18"
+"E528D7295EF7437295FF1A72D402771713F16876DD050AE5B7AD53CCB90855C9"
+"3956648358ADFD966422F52498732D68D1D7FBEF10D78034AB8DCB6F0FCF885C"
+"C2B2EA2C3E6AC86609EA058A9DA8CC63531DC915414DF568B09482DDAC1954DE"
+"C7EB714F6FF7D44CD5B86F6BD115810930637C01D0F6013BC9740FA2C633BA89";
 #endif
+
+#if 1
+    const char * username = "alice";
+    const char * password = "password123";
+#else
+    const char * username = "Pair-Setup";
+    const char * password = "30879718";
+#endif
+
+
+static void printHexString(const char *name, const unsigned char *d, int len)
+{
+    printf("[ %s ] ", name); 
+
+    for (int i = 0; i < len; ++i)
+    {
+        char c = d[i];
+
+        if (c >= '0' && c <= '9')
+        {
+            printf("%c", c); 
+        }
+        else if (c >= 'a' && c <= 'z')
+        {
+            printf("%c", c); 
+        }
+        else if (c >= 'A' && c <= 'Z')
+        {
+            printf("%c", c); 
+        }
+        else
+        {
+            printf(" "); 
+        }
+    }
+
+    printf("\n"); 
+}
+
+static void hexToBignum(const char *hexString, unsigned char **bytes, int *len)
+{
+    mbedtls_mpi X;
+    unsigned char *buf = NULL;
+
+    mbedtls_mpi_init(&X);
+
+    do
+    {
+        if (mbedtls_mpi_read_string(&X, 16, hexString) != 0)
+        {
+            printf("read bignum from hexString failed\n"); 
+            break;
+        }
+
+        *len = mbedtls_mpi_size(&X);
+
+        *bytes = (unsigned char *) malloc( *len );
+
+        mbedtls_mpi_write_binary(&X, *bytes, *len);
+    } while (0);
+
+    mbedtls_mpi_free(&X);
+}
+
+static void printBignum(const char *name, const unsigned char *d, int len)
+{
+    char buf[1024];
+    size_t outLen = 0;
+    mbedtls_mpi X;
+
+    mbedtls_mpi_init(&X);
+
+    do
+    {
+        if (mbedtls_mpi_read_binary(&X, d, len) != 0)
+        {
+            printf("read bignum from buffer failed\n"); 
+            break;
+        }
+
+        if (mbedtls_mpi_write_string(&X, 16, buf, 1024, &outLen) != 0)
+        {
+            printf("write to string failed\n"); 
+            break;
+        }
+
+        printHexString(name, buf, outLen);
+    } while (0);
+
+    mbedtls_mpi_free(&X);
+}
 
 static unsigned long long get_usec()
 {
@@ -85,20 +181,11 @@ int main( int argc, char * argv[] )
     unsigned long long start;
     unsigned long long duration;
 
-#if 0
-    const char * username = "testuser";
-    const char * password = "password";
-#else
-    const char * username = "Pair-Setup";
-    const char * password = "30879718";
-#endif
-
     const char * auth_username = 0;
     const char * n_hex         = 0;
     const char * g_hex         = 0;
 
     SRP_HashAlgorithm alg     = TEST_HASH;
-    //SRP_NGType        ng_type = SRP_NG_8192; //TEST_NG;
     SRP_NGType        ng_type = TEST_NG;
 
     printf("------------------------------------------------------\n");
@@ -106,17 +193,25 @@ int main( int argc, char * argv[] )
     if (ng_type == SRP_NG_CUSTOM)
     {
         printf("SRP NG is custom!\n");
-        n_hex = test_n_hex;
-        g_hex = test_g_hex;
+        n_hex = N_3072;
+        g_hex = G_3072;
     }
 
+    printHexString("N", n_hex, strlen(n_hex));
+    printHexString("G", g_hex, strlen(g_hex));
+
     printf("[SERVER] srp_create_salted_verification_key\n");
+#if 1
     srp_create_salted_verification_key( alg, ng_type, username, 
             (const unsigned char *)password, 
             strlen(password), 
             &bytes_s, &len_s, &bytes_v, &len_v, n_hex, g_hex );
-    printf("[SERVER] S(salt): %d\n", len_s);
-    printf("[SERVER] V(verification_key ?): %d\n", len_v);
+#else
+    hexToBignum(S, &bytes_s, &len_s);
+    hexToBignum(V, &bytes_v, &len_v);
+#endif
+    printBignum("s", bytes_s, len_s);
+    printBignum("v", bytes_v, len_v);
 
     start = get_usec();
 
